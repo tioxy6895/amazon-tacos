@@ -41,3 +41,15 @@ CSV 使用 UTF-8 編碼、USD 金額、YYYY-MM-DD 日期，每天一列。
 ```
 
 涵蓋 CSV 驗證、SQLite 持久化與覆蓋、缺少資料及零分母、Streamlit 儀表板與重新啟動。
+
+## 部署到 Streamlit Community Cloud
+
+1. 開啟 https://share.streamlit.io/ ，使用 GitHub 登入並授權此儲存庫。
+2. 選擇 Create app，選取 `tioxy6895/amazon-tacos`。
+3. Branch 填 `main`，Main file path 填 `app.py`。
+4. 在 Advanced settings 選 Python **3.12**，不需填 Amazon API 金鑰。
+5. 點 Deploy，完成後將應用的分享權限設為 **私人／僅限指定使用者**。
+6. 打開應用，點「載入範例資料」，預期顯示 TACoS 10%、ACoS 25%、ROAS 4 倍。
+
+Community Cloud 的本機 SQLite 不是可靠的永久儲存；重建或重新部署可能遺失資料。
+這種部署適合第一版展示。使用真實營運資料前，應限制存取，並另行加入永久資料庫與备份。
