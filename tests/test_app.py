@@ -40,11 +40,13 @@ class AnalyticsTests(unittest.TestCase):
         from unittest.mock import patch
         with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {'TACOS_DB_PATH': str(Path(folder) / 'app.db')}):
             app = AppTest.from_file('app.py').run()
+            app.radio[0].set_value('CSV／範例').run()
             self.assertFalse(app.exception)
             next(b for b in app.button if b.label == '載入範例資料').click().run()
             self.assertFalse(app.exception)
             self.assertEqual([m.value for m in app.metric][-3:], ['10.00%', '25.00%', '4.00 倍'])
             restarted = AppTest.from_file('app.py').run()
+            restarted.radio[0].set_value('CSV／範例').run()
             self.assertFalse(restarted.exception)
             self.assertEqual(len(restarted.metric), 6)
 
