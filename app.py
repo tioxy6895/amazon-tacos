@@ -4,12 +4,13 @@ import os
 import streamlit as st
 from analytics import connect, parse_csv, save_rows, daily_rows, metrics
 from amazon_ui import render_amazon
+from report_search import render_search
 
 ROOT = Path(__file__).resolve().parent
 st.set_page_config(page_title='Amazon TACoS', page_icon='📊', layout='wide')
 st.title('Amazon 美國站營運分析')
 st.caption('連接 Amazon 美國站，或匯入每日 USD 報表，追蹤 TACoS、ACoS 與 ROAS。')
-mode = st.sidebar.radio('資料來源', ['Amazon API', 'CSV／範例'])
+mode = st.sidebar.radio('資料來源', ['CSV／範例', 'Amazon API'])
 if mode == 'Amazon API':
     database_path = render_amazon(ROOT)
     db = connect(database_path)
@@ -36,29 +37,42 @@ else:
             st.success('範例資料已載入；同日期資料已更新。')
 rows = daily_rows(db)
 db.close()
-if not rows:
-    st.info('尚無資料。請完成 Amazon 授權並同步報表。' if mode == 'Amazon API' else '請上傳兩份 CSV，或按左側「載入範例資料」開始。')
-    st.stop()
-period = st.date_input('日期範圍', value=(date.fromisoformat(rows[0][0]), date.fromisoformat(rows[-1][0])))
-if len(period) != 2:
-    st.info('請選擇開始與結束日期。')
-    st.stop()
-rows = [r for r in rows if period[0].isoformat() <= r[0] <= period[1].isoformat()]
-m = metrics(rows)
-if m['missing_days']:
-    st.warning(f"{m['missing_days']} 天缺少銷售或廣告報表，未納入指標計算。")
-st.caption(f"指標使用 {m['complete_days']} 天兩份報表皆完整的資料。分母為零時顯示 —。")
-cols = st.columns(3)
-for col, key, label in zip(cols, ['total_sales', 'ad_spend', 'ad_sales'], ['總銷售額', '廣告花費', '廣告歸因銷售額']):
-    col.metric(label, f"US$ {m[key]:,.2f}")
-cols = st.columns(3)
-for col, key, label in zip(cols, ['tacos', 'acos', 'roas'], (['TACoS（僅 SP）', 'ACoS（SP，7 天）', 'ROAS（SP，7 天）'] if mode == 'Amazon API' else ['TACoS', 'ACoS', 'ROAS'])):
-    value = m[key]
-    col.metric(label, '—' if value is None else (f'{value:.2f} 倍' if key == 'roas' else f'{value:.2%}'))
-st.caption('TACoS＝廣告花費／總銷售額 · ACoS＝廣告花費／廣告歸因銷售額 · ROAS＝廣告歸因銷售額／廣告花費')
-records = [dict(zip(['日期', '總銷售額', '廣告花費', '廣告歸因銷售額'], r)) for r in rows]
-st.subheader('每日趨勢')
-if records:
-    st.line_chart(records, x='日期', y=['總銷售額', '廣告花費', '廣告歸因銷售額'])
-st.subheader('每日資料（USD）')
-st.dataframe(records, width='stretch')
+period = None
+if rows:
+    st.subheader('資料計算日期區間')
+    st.caption('選擇開始日與結束日，儀表板的金額、比率與每日趨勢會立即更新，包含起訖兩天。')
+    period = st.date_input('開始日期 — 結束日期', value=(date.fromisoformat(rows[0][0]), date.fromisoformat(rows[-1][0])), key=f'calculation_period_{mode}')
+    if len(period) == 2:
+        st.caption(f'目前計算區間：{period[0].isoformat()} 至 {period[1].isoformat()}')
+dashboard, search_tab = st.tabs(['營運儀表板', '搜尋報表'])
+with search_tab:
+    render_search(rows, mode)
+with dashboard:
+    if not rows:
+        st.info('尚無資料。請完成 Amazon 授權並同步報表。' if mode == 'Amazon API' else '請上傳兩份 CSV，或按左側「載入範例資料」開始。')
+        st.stop()
+    if len(period) != 2:
+        st.info('請選擇開始與結束日期。')
+        st.stop()
+    rows = [r for r in rows if period[0].isoformat() <= r[0] <= period[1].isoformat()]
+    if not rows:
+        st.info('所選計算日期區間沒有資料，請調整日期。')
+        st.stop()
+    m = metrics(rows)
+    if m['missing_days']:
+        st.warning(f"{m['missing_days']} 天缺少銷售或廣告報表，未納入指標計算。")
+    st.caption(f"指標使用 {m['complete_days']} 天兩份報表皆完整的資料。分母為零時顯示 —。")
+    cols = st.columns(3)
+    for col, key, label in zip(cols, ['total_sales', 'ad_spend', 'ad_sales'], ['總銷售額', '廣告花費', '廣告歸因銷售額']):
+        col.metric(label, f"US$ {m[key]:,.2f}")
+    cols = st.columns(3)
+    for col, key, label in zip(cols, ['tacos', 'acos', 'roas'], (['TACoS（僅 SP）', 'ACoS（SP，7 天）', 'ROAS（SP，7 天）'] if mode == 'Amazon API' else ['TACoS', 'ACoS', 'ROAS'])):
+        value = m[key]
+        col.metric(label, '—' if value is None else (f'{value:.2f} 倍' if key == 'roas' else f'{value:.2%}'))
+    st.caption('TACoS＝廣告花費／總銷售額 · ACoS＝廣告花費／廣告歸因銷售額 · ROAS＝廣告歸因銷售額／廣告花費')
+    records = [dict(zip(['日期', '總銷售額', '廣告花費', '廣告歸因銷售額'], r)) for r in rows]
+    st.subheader('每日趨勢')
+    if records:
+        st.line_chart(records, x='日期', y=['總銷售額', '廣告花費', '廣告歸因銷售額'])
+    st.subheader('每日資料（USD）')
+    st.dataframe(records, width='stretch')

@@ -35,7 +35,7 @@ SP-API Refresh Token 和 Ads Refresh Token 不可任意互換。
 
 ## 直接取得資料
 
-1. 開啟應用，選擇「Amazon API」（預設）。
+1. 開啟應用，在左側資料來源選擇「Amazon API」。
 2. 點「連接 Amazon 廣告帳號」，選擇美國 USD 帳號。確認它與 SP-API 授權的賣家相同。
 3. 選擇已結束的日期，每次最多 31 天。建議先同步一週。
 4. 點「向 Amazon 申請銷售與廣告報表」。Amazon 會非同步產生報表。
